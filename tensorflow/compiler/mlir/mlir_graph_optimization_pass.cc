@@ -38,6 +38,7 @@ limitations under the License.
 #include "tensorflow/compiler/mlir/tensorflow/translate/mlir_roundtrip_flags.h"
 #include "tensorflow/compiler/mlir/tensorflow/utils/device_util.h"
 #include "tensorflow/compiler/mlir/tensorflow/utils/dump_mlir_util.h"
+#include "tensorflow/compiler/mlir/tf2xla/api/v2/tf_executor_to_graph.h"
 #include "tensorflow/core/common_runtime/graph_constructor.h"
 #include "tensorflow/core/common_runtime/optimization_registry.h"
 #include "tensorflow/core/framework/metrics.h"
@@ -347,8 +348,8 @@ Status MlirFunctionOptimizationPass::Run(
   timings.Reset({kTfMlirCategory, "convert_mlir_to_graph"});
   // Some or all passes are enabled. Convert MLIR module and return back
   // resulted graph.
-  Status status = ConvertMlirToGraph(*module_ref, export_config, graph,
-                                     flib_def, &control_ret_nodes);
+  Status status = tensorflow::tf2xla::v2::ConvertMlirToGraph(
+      *module_ref, export_config, graph, flib_def, &control_ret_nodes);
   if (!status.ok()) {
     errors::AppendToMessage(&status,
                             "Error converting MLIR module back to graph");
