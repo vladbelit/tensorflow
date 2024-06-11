@@ -310,9 +310,17 @@ class CuptiActivityBufferManager {
     cached_buffers_.emplace_back(p, sz);
   }
 
-  void AddCachedActivityEventsTo(CuptiEventCollectorDelegate& receiver,
-                                 size_t max_activity_event_count,
-                                 size_t& dropped_activity_event_count);
+  std::list<ActivityBufferAndSize> PopCachedBuffers() {
+    std::list<ActivityBufferAndSize> result;
+    tsl::mutex_lock lock(buffer_mutex_);
+    std::swap(result, cached_buffers_);
+    return result;
+  }
+
+  static void AddCachedActivityEventsTo(
+      CuptiEventCollectorDelegate& receiver,
+      std::list<ActivityBufferAndSize>& buffer_list,
+      size_t max_activity_event_count, size_t& dropped_activity_event_count);
 
  private:
   tsl::profiler::BufferPool buffer_pool_;
