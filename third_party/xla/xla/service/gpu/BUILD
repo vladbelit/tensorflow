@@ -4273,6 +4273,7 @@ cc_library(
     deps = [
         ":backend_configs_cc",
         ":cublas_cudnn",
+        ":gpu_latency_hiding_scheduler",
         ":gpu_schedule_postprocessing",
         "//xla:shape_util",
         "//xla:statusor",
@@ -6099,6 +6100,9 @@ cc_library(
     hdrs = ["gpu_windowed_einsum_handler.h"],
     deps = [
         ":backend_configs_cc",
+        "//xla:literal_util",
+        "//xla:status",
+        "//xla:statusor",
         "//xla:util",
         "//xla:xla_data_proto_cc",
         "//xla/hlo/ir:hlo",
@@ -6106,6 +6110,8 @@ cc_library(
         "//xla/service:hlo_creation_utils",
         "//xla/service:hlo_pass",
         "//xla/service:pattern_matcher",
+        "//xla/service:shape_inference",
+        "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -6263,4 +6269,26 @@ xla_cc_test(
         "@local_tsl//tsl/platform:status_matchers",
         "@local_tsl//tsl/platform:statusor",
     ],
+)
+
+cc_library(
+    name = "gpu_latency_hiding_scheduler",
+    srcs = ["gpu_latency_hiding_scheduler.cc"],
+    hdrs = ["gpu_latency_hiding_scheduler.h"],
+    deps = [
+        ":backend_configs_cc",
+        "//xla/hlo/ir:hlo",
+        "//xla/hlo/utils:hlo_query",
+        "//xla/service:collective_ops_utils",
+        "//xla/service:latency_hiding_scheduler",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings:string_view",
+    ],
+)
+
+cc_test(
+    name = "gpu_latency_hiding_scheduler_test",
+    srcs = ["gpu_latency_hiding_scheduler_test.cc"],
+    deps = ["@com_google_googletest//:gtest_main"],
 )
