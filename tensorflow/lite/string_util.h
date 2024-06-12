@@ -111,13 +111,19 @@ class DynamicBuffer {
   const size_t max_length_;
 };
 
+// LINT.IfChange
 // Return num of strings in a String tensor.
 int GetStringCount(const void* raw_buffer);
+// LINT.ThenChange(//tensorflow/compiler/mlir/lite/utils/string_utils.h)
+
 int GetStringCount(const TfLiteTensor* tensor);
 
+// LINT.IfChange
 // Get String pointer and length of index-th string in tensor.
 // NOTE: This will not create a copy of string data.
 StringRef GetString(const void* raw_buffer, int string_index);
+// LINT.ThenChange(//tensorflow/compiler/mlir/lite/utils/string_utils.h)
+
 StringRef GetString(const TfLiteTensor* tensor, int string_index);
 }  // namespace tflite
 

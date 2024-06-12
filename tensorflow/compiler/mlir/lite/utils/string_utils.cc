@@ -77,4 +77,32 @@ int MiniDynamicBuffer::WriteToBuffer(char** buffer) {
   return bytes;
 }
 
+// LINT.IfChange
+
+int GetStringCount(const void* raw_buffer) {
+  // The first integers in the raw buffer is the number of strings.
+  //
+  // NOTE: The string buffer is accessed here as if it's native endian (instead
+  // of small endian, as documented in the header). This will protentially break
+  // when TFLite is ported to big endian platforms.
+  // TODO(b/165919229): This code will need changing if/when we port to a
+  // big-endian platform.
+  return *static_cast<const int32_t*>(raw_buffer);
+}
+
+StringRef GetString(const void* raw_buffer, int string_index) {
+  // NOTE: The string buffer is accessed here as if it's native endian (instead
+  // of small endian, as documented in the header). This will protentially break
+  // when TFLite is ported to big endian platforms.
+  // TODO(b/165919229): This code will need changing if/when we port to a
+  // big-endian platform.
+  const int32_t* offset =
+      static_cast<const int32_t*>(raw_buffer) + (string_index + 1);
+  const size_t string_len = (*(offset + 1)) - (*offset);
+  return StringRef{static_cast<const char*>(raw_buffer) + (*offset),
+                   string_len};
+}
+
+// LINT.ThenChange(//tensorflow/lite/string_util.cc)
+
 }  // namespace mlir::TFL

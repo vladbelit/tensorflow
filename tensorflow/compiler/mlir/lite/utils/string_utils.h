@@ -28,6 +28,15 @@ namespace mlir::TFL {
 
 constexpr uint64_t kDefaultMaxLength = std::numeric_limits<int>::max();
 
+// Convenient structure to store string pointer and length. Note that
+// methods on MiniDynamicBuffer enforce that the whole buffer (and by extension
+// every contained string) is of max length (2ul << 30) - 1. See
+// string_util.cc for more info.
+typedef struct {
+  const char* str;
+  size_t len;
+} StringRef;
+
 class MiniDynamicBuffer {
  public:
   explicit MiniDynamicBuffer(size_t max_length = kDefaultMaxLength)
@@ -54,6 +63,18 @@ class MiniDynamicBuffer {
   // avoid a change in behavior.
   const size_t max_length_;
 };
+
+// LINT.IfChange
+
+// Return num of strings in a String tensor.
+int GetStringCount(const void* raw_buffer);
+
+// Get String pointer and length of index-th string in tensor.
+// NOTE: This will not create a copy of string data.
+StringRef GetString(const void* raw_buffer, int string_index);
+
+// LINT.ThenChange(//tensorflow/lite/string_util.h)
+
 }  // namespace mlir::TFL
 
 #endif  // TENSORFLOW_COMPILER_MLIR_LITE_UTILS_STRING_UTILS_H_
