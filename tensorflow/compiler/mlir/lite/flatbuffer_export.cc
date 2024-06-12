@@ -109,7 +109,6 @@ limitations under the License.
 #include "tensorflow/lite/core/macros.h"
 #include "tensorflow/lite/delegates/flex/allowlisted_flex_ops.h"
 #include "tensorflow/lite/experimental/remat/metadata_util.h"
-#include "tensorflow/lite/graph_info.h"
 #include "tensorflow/lite/python/metrics/converter_error_data.pb.h"
 #include "tensorflow/lite/schema/schema_conversion_utils.h"
 #include "tensorflow/lite/string_util.h"
@@ -3121,10 +3120,11 @@ Translator::CreateMetadataVector() {
   }
 
   // Populate the model control dependencies metadata entry.
-  if (std::any_of(
-          model_control_dependencies_.begin(),
-          model_control_dependencies_.end(),
-          [](const tflite::ControlEdges& edges) { return !edges.empty(); })) {
+  if (std::any_of(model_control_dependencies_.begin(),
+                  model_control_dependencies_.end(),
+                  [](const std::vector<std::pair<int, int>>& edges) {
+                    return !edges.empty();
+                  })) {
     metadata.push_back(
         BuildMetadata(tflite::kModelControlDependenciesMetadataKey,
                       tflite::SerializeModelControlDependencies(
