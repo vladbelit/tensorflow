@@ -138,6 +138,8 @@ void DynamicBuffer::WriteToTensor(TfLiteTensor* tensor,
 }
 #endif  // TF_LITE_STATIC_MEMORY
 
+// LINT.IfChange
+
 int GetStringCount(const void* raw_buffer) {
   // The first integers in the raw buffer is the number of strings.
   //
@@ -149,10 +151,14 @@ int GetStringCount(const void* raw_buffer) {
   return *static_cast<const int32_t*>(raw_buffer);
 }
 
+// LINT.ThenChange(//tensorflow/compiler/mlir/lite/utils/string_utils.cc)
+
 int GetStringCount(const TfLiteTensor* tensor) {
   // The first integers in the raw buffer is the number of strings.
   return GetStringCount(tensor->data.raw);
 }
+
+// LINT.IfChange
 
 StringRef GetString(const void* raw_buffer, int string_index) {
   // NOTE: The string buffer is accessed here as if it's native endian (instead
@@ -166,6 +172,8 @@ StringRef GetString(const void* raw_buffer, int string_index) {
   return StringRef{static_cast<const char*>(raw_buffer) + (*offset),
                    string_len};
 }
+
+// LINT.ThenChange(//tensorflow/compiler/mlir/lite/utils/string_utils.cc)
 
 StringRef GetString(const TfLiteTensor* tensor, int string_index) {
   return GetString(tensor->data.raw, string_index);
