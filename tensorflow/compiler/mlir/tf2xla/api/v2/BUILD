@@ -38,6 +38,7 @@ cc_library(
         "//tensorflow/compiler/mlir/tf2xla/internal:compilation_timer",
         "//tensorflow/compiler/mlir/tf2xla/internal:legalize_tf_mlir",
         "//tensorflow/compiler/mlir/tf2xla/internal:legalize_tf_to_hlo",
+        "//tensorflow/compiler/mlir/tf2xla/internal:reproducer_proto_cc",
         "//tensorflow/compiler/tf2xla:layout_util",
         "//tensorflow/compiler/tf2xla:tf2xla_util",
         "//tensorflow/compiler/tf2xla:xla_helpers",
