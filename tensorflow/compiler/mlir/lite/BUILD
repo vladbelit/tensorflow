@@ -1087,6 +1087,7 @@ cc_library(
         ":string_utils",
         ":tensorflow_lite",
         "//tensorflow/compiler/mlir:op_or_arg_name_mapper",
+        "//tensorflow/compiler/mlir/lite:metadata_util",
         "//tensorflow/compiler/mlir/lite/metrics:error_collector_inst",
         "//tensorflow/compiler/mlir/lite/quantization/ir:QuantOps",
         "//tensorflow/compiler/mlir/lite/schema:schema_fbs_with_mutable",
@@ -1103,7 +1104,6 @@ cc_library(
         "//tensorflow/lite/core:framework",
         "//tensorflow/lite/core/c:private_common",
         "//tensorflow/lite/delegates/flex:allowlisted_flex_ops_lib",
-        "//tensorflow/lite/experimental/remat:metadata_util",
         "//tensorflow/lite/python/metrics:converter_error_data_proto_cc",
         "//tensorflow/lite/schema:schema_conversion_utils",
         "//tensorflow/lite/toco:toco_flags_proto_cc",
@@ -1147,6 +1147,7 @@ cc_library(
         ":offset_buffer",
         ":size_utils",
         ":tensorflow_lite",
+        "//tensorflow/compiler/mlir/lite:metadata_util",
         "//tensorflow/compiler/mlir/lite/quantization/ir:QuantOps",
         "//tensorflow/compiler/mlir/lite/schema:schema_fbs_with_mutable",
         "//tensorflow/compiler/mlir/lite/schema:schema_utils",
@@ -1163,7 +1164,6 @@ cc_library(
         "//tensorflow/core/platform:errors",
         "//tensorflow/core/platform:status",
         "//tensorflow/lite:framework",
-        "//tensorflow/lite/experimental/remat:metadata_util",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/status",
@@ -1412,6 +1412,7 @@ cc_library(
         ":tf_tfl_passes",
         "//tensorflow/cc/saved_model:loader",
         "//tensorflow/compiler/mlir:op_or_arg_name_mapper",
+        "//tensorflow/compiler/mlir/lite:metadata_util",
         "//tensorflow/compiler/mlir/lite/debug",
         "//tensorflow/compiler/mlir/lite/metrics:error_collector",
         "//tensorflow/compiler/mlir/lite/metrics:error_collector_inst",
@@ -1441,7 +1442,6 @@ cc_library(
         "//tensorflow/core:framework",
         "//tensorflow/core:protos_all_cc",
         "//tensorflow/lite/c:c_api_types",
-        "//tensorflow/lite/experimental/remat:metadata_util",
         "//tensorflow/lite/python/metrics:converter_error_data_proto_cc",
         "//tensorflow/lite/toco:toco_flags_proto_cc",
         "//tensorflow/lite/tools/optimize:quantize_weights",
@@ -1515,6 +1515,26 @@ cc_library(
     hdrs = ["utils/string_utils.h"],
     deps = [
         "@com_google_absl//absl/status",
+    ],
+)
+
+cc_library(
+    name = "metadata_util",
+    srcs = ["utils/metadata_util.cc"],
+    hdrs = ["utils/metadata_util.h"],
+    compatible_with = get_compatible_with_portable(),
+    deps = [
+        "//tensorflow/lite:graph_info",
+    ],
+)
+
+tf_cc_test(
+    name = "metadata_util_test",
+    size = "small",
+    srcs = ["utils/metadata_util_test.cc"],
+    deps = [
+        ":metadata_util",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
