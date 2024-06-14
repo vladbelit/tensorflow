@@ -178,8 +178,9 @@ class BufferInfo {
 // Align to 64-bytes, to mimic tsl::Allocator::kAllocatorAlignment.
 inline constexpr size_t Align() { return 64; }
 
-// The minimum alignment of buffers passed to XLA:CPU.
-inline constexpr size_t MinAlign() { return 16; }
+// The minimum alignment of buffers passed to XLA:CPU. We require 64-byte
+// alignment to be able to compile for AVX-512 with aligned loads and stores.
+inline constexpr size_t MinAlign() { return 64; }
 
 // When declaring variables that will be passed to an XLA instance as input via
 // set_arg_data(), be it a regular input or a resource variable in the graph,

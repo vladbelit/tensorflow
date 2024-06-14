@@ -2887,7 +2887,7 @@ module @jit__lambda_ attributes {mhlo.num_partitions = 1 : i32,
       np.testing.assert_array_equal(x, y)
       # If the input was sufficiently aligned, the input and output should
       # alias.
-      self.assertTrue((x_ptr & 15) != 0 or x_ptr == y_ptr)
+      self.assertTrue((x_ptr & 63) != 0 or x_ptr == y_ptr)
       self.assertEqual(y_ptr, buffer.unsafe_buffer_pointer())
 
       during_call = xla_client.HostBufferSemantics.IMMUTABLE_ONLY_DURING_CALL
