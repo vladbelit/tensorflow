@@ -843,6 +843,23 @@ TEST_F(IndexingMapTest, RescaleSymbols_RescaledSymbolInOtherConstraint) {
     )"));
 }
 
+TEST_F(IndexingMapTest, RescaleSymbolsKeepsHashmapConsistent) {
+  auto serialized_map = "(d0)[s0, s1, s2] -> (s2, d0, s0, s0 floordiv 6)";
+  IndexingMap indexing_map = IndexingMap::FromTensorSizes(
+      ParseAffineMap(serialized_map, &mlir_context_), {4}, {7, 2, 6});
+  indexing_map.AddConstraint(ParseAffineExpr("s0 mod 6", &mlir_context_),
+                             Interval{0, 0});
+  indexing_map.AddConstraint(ParseAffineExpr("s0 * s1", &mlir_context_),
+                             Interval{0, 100});
+
+  EXPECT_TRUE(indexing_map.RescaleSymbols());
+
+  for (auto& [expr, interval] : indexing_map.GetConstraints()) {
+    EXPECT_TRUE(indexing_map.GetConstraints().contains(expr))
+        << "Don't modify the *keys* of the hashmap.";
+  }
+}
+
 TEST_F(IndexingMapTest, RangeEvaluatorTest) {
   RangeEvaluator range_evaluator(
       {Interval{0, 9}, Interval{-10, -1}, Interval{-1, 2}, Interval{0, 0}}, {},

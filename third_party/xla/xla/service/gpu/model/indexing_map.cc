@@ -31,6 +31,7 @@ limitations under the License.
 #include "absl/base/optimization.h"
 #include "absl/types/span.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/SmallVector.h"
@@ -1734,7 +1735,8 @@ IndexingMap ComposeIndexingMaps(const IndexingMap& first,
 bool IndexingMap::RescaleSymbols() {
   MergeModConstraints();
 
-  std::vector<AffineExpr> to_delete;
+  llvm::DenseSet<AffineExpr> to_delete;
+  llvm::DenseMap<AffineExpr, AffineExpr> to_replace;
 
   for (const auto& [expr, range] : constraints_) {
     if (range.lower != range.upper) continue;
@@ -1753,28 +1755,32 @@ bool IndexingMap::RescaleSymbols() {
     if (mod_expr.getLHS().getKind() != AffineExprKind::SymbolId) continue;
     auto symbol_expr = mlir::cast<AffineSymbolExpr>(mod_expr.getLHS());
 
+    // In case there are two mod constraints which were not merged, we only
+    // support rescaling by one.
+    if (to_replace.contains(symbol_expr)) {
+      continue;
+    }
+
+    to_replace[symbol_expr] = constant_expr * symbol_expr + shift_value;
+    to_delete.insert(expr);
+
     affine_map_ = affine_map_.replace(
         symbol_expr, constant_expr * symbol_expr + shift_value,
         affine_map_.getNumDims(), affine_map_.getNumSymbols());
 
-    for (auto& [other_expr, other_range] : constraints_) {
-      if (other_expr == expr) continue;
-      if (!other_expr.isFunctionOfSymbol(symbol_expr.getPosition())) continue;
-
-      other_expr = other_expr.replace(
-          symbol_expr, constant_expr * symbol_expr + shift_value);
-    }
-
     auto& symbol_range = range_vars_[symbol_expr.getPosition()].range;
     symbol_range.lower = (symbol_range.lower - shift_value) / scaling_factor;
     symbol_range.upper = (symbol_range.upper - shift_value) / scaling_factor;
-
-    to_delete.emplace_back(expr);
   }
 
-  for (const auto& expr : to_delete) {
-    constraints_.erase(expr);
+  llvm::DenseMap<mlir::AffineExpr, Interval> new_constraints;
+  for (const auto& [expr, range] : constraints_) {
+    if (to_delete.contains(expr)) {
+      continue;
+    }
+    new_constraints[expr.replace(to_replace)] = range;
   }
+  constraints_ = std::move(new_constraints);
 
   return !to_delete.empty();
 }
