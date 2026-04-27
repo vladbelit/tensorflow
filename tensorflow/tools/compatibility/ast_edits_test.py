@@ -43,8 +43,6 @@ following new APIs:
 import ast
 import io
 import os
-import sys
-import unittest
 
 import pasta
 
@@ -215,9 +213,6 @@ class TestAstEdits(test_util.TensorFlowTestCase):
     )
     self.assertEqual(pasta.dump(pasta.parse(text)), text)
 
-  @unittest.skipIf(
-      sys.version_info >= (3, 14), "Pasta is not Python 3.14-ready."
-  )
   def testGooglePastaRoundTripIndentedImport(self):
     text = (
         "\n"
@@ -615,9 +610,6 @@ from bar import a, c"""
     _, new_text = self._upgrade(RenameImports(), text)
     self.assertEqual(expected_text, new_text)
 
-  @unittest.skipIf(
-      sys.version_info >= (3, 14), "Pasta is not Python 3.14-ready."
-  )
   def testImportInsideFunction(self):
     text = """
 def t():

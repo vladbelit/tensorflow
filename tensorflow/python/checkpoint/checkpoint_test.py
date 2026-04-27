@@ -293,6 +293,24 @@ class CheckpointingTests(parameterized.TestCase, test.TestCase):
     self.assertIs(copied_ckpt._saver._graph_view.root.v, copied_ckpt.v)
     self.assertIsNot(copied_ckpt._saver._graph_view.root.v, original_ckpt.v)
 
+  def testDeepCopyCheckpointCopiesGraphViewAttachedDependencies(self):
+    root = autotrackable.AutoTrackable()
+    child = variables_lib.Variable(1.)
+    original_ckpt = trackable_utils.Checkpoint(root=root, child=child)
+    copied_ckpt = copy.deepcopy(original_ckpt)
+
+    graph_view = copied_ckpt._saver._graph_view
+    attached_dependencies = {
+        dependency.name: dependency.ref
+        for dependency in graph_view.attached_dependencies
+    }
+
+    self.assertIs(graph_view.root, copied_ckpt.root)
+    self.assertIsNot(graph_view.root, original_ckpt.root)
+    self.assertIs(attached_dependencies["root"], copied_ckpt.root)
+    self.assertIs(attached_dependencies["child"], copied_ckpt.child)
+    self.assertIsNot(attached_dependencies["child"], original_ckpt.child)
+
   @test_util.run_in_graph_and_eager_modes
   def testPassingCheckpointOptions(self):
     localhost = "/job:localhost/device:CPU:0"

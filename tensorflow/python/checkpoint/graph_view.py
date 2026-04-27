@@ -22,6 +22,31 @@ from tensorflow.python.trackable import base
 from tensorflow.python.util.tf_export import tf_export
 
 
+def _copy_attached_dependencies(attached_dependencies, memo):
+  """Deep-copies attached dependencies, reconnecting weak refs to copies."""
+  if attached_dependencies is None:
+    return None
+
+  copied_dependencies = []
+  for dependency in attached_dependencies:
+    if isinstance(dependency, base.WeakTrackableReference):
+      strong_ref = dependency.ref
+      if strong_ref is None:
+        copied_dependencies.append(copy.deepcopy(dependency, memo))
+      else:
+        copied_dependencies.append(
+            base.WeakTrackableReference(
+                dependency.name, copy.deepcopy(strong_ref, memo)
+            )
+        )
+    else:
+      copied_dependencies.append(copy.deepcopy(dependency, memo))
+
+  if isinstance(attached_dependencies, tuple):
+    return tuple(copied_dependencies)
+  return copied_dependencies
+
+
 @tf_export("__internal__.tracking.ObjectGraphView", v1=[])
 class ObjectGraphView(trackable_view.TrackableView):
   """Gathers and serializes an object graph."""
@@ -67,6 +92,8 @@ class ObjectGraphView(trackable_view.TrackableView):
           )
         else:
           setattr(copied, key, strong_copy)
+      elif key == "_attached_dependencies":
+        setattr(copied, key, _copy_attached_dependencies(value, memo))
       else:
         setattr(copied, key, copy.deepcopy(value, memo))
     return copied
