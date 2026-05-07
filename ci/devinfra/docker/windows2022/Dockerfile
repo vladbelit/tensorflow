@@ -1,14 +1,15 @@
 # This Dockerfile creates an image that has:
 # - the correct MTU setting for networking from inside the container to work.
 # - Visual Studio 2022 Build Tools
-# - MSVC 14.39
+# - MSVC 14.44.35207
+# - Windows SDK 10.0.22621.0
 # - LLVM/Clang 18.1.4
 # - MSYS2 + curl, git, patch, vim, unzip, zip
 # - Python 3.9 - 3.14
 # - Bazelisk 1.22.1
 # - JDK 21 (Azul Zulu)
 
-FROM mcr.microsoft.com/windows/servercore:ltsc2022
+FROM mcr.microsoft.com/windows/servercore:ltsc2022@sha256:e000e9a1712065a0218447c20ae19984b447fa741d11cf64696b8a1172fcd7da
 
 SHELL ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", \
        "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue';$VerbosePreference = 'Continue';"]
@@ -26,22 +27,31 @@ RUN (New-Object Net.WebClient).DownloadFile('https://www.7-zip.org/a/7z2201-x64.
     Start-Process msiexec.exe -ArgumentList \"/i 7z.msi /qn /norestart /log C:\\TEMP\\7z_install_log.txt\" -wait; \
     Remove-Item .\7z.msi;
 
-# Download the Visual Studio 2022 Installer.
-RUN (New-Object Net.WebClient).DownloadFile('https://aka.ms/vs/17/release/vs_community.exe', 'C:\TEMP\vs_community.exe');
-# Install Visual Studio 2022 Build Tools + Compiler
+ARG VS_BUILDTOOLS_URL=https://aka.ms/vs/17/release/vs_buildtools.exe
+
+# Download the Visual Studio 2022 Build Tools installer.
+RUN (New-Object Net.WebClient).DownloadFile($env:VS_BUILDTOOLS_URL, 'C:\TEMP\vs_buildtools.exe');
+
+# Install Visual Studio 2022 Build Tools + compiler.
 SHELL ["cmd", "/S", "/C"]
 # Packages, and component versions, can be found here:
-# https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-build-tools
-RUN C:\TEMP\vs_community.exe \
+# https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-build-tools?view=vs-2022
+RUN C:\TEMP\vs_buildtools.exe \
         --quiet --wait --norestart --nocache \
-        --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
-        --add Microsoft.VisualStudio.Workload.NativeDesktop \
-        --add Microsoft.VisualStudio.Component.VC.14.39.17.9.x86.64 \
+        --add Microsoft.VisualStudio.Workload.VCTools \
+        --add Microsoft.VisualStudio.Component.VC.14.44.17.14.x86.x64 \
         --add Microsoft.VisualStudio.Component.Windows11SDK.22621 \
- || IF "%ERRORLEVEL%"=="3010" EXIT 0
+ || IF ERRORLEVEL 3011 (EXIT 1) ELSE (IF ERRORLEVEL 3010 (EXIT 0) ELSE (EXIT 1))
 
 SHELL ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", \
        "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; $VerbosePreference = 'Continue';"]
+
+RUN if (-not (Test-Path 'C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\cl.exe')) { \
+        throw 'MSVC 14.44.35207 was not installed at the expected Build Tools path.'; \
+    }; \
+    if (-not (Test-Path 'C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\ucrt')) { \
+        throw 'Windows SDK 10.0.22621.0 was not installed at the path expected by the checked-in Bazel toolchain.'; \
+    };
 
 # Install Clang.
 RUN (New-Object Net.WebClient).DownloadFile( \
@@ -150,22 +160,13 @@ ENV BAZEL_LLVM "C:\tools\LLVM"
 
 ENV BAZEL_SH "C:\tools\msys64\usr\bin\bash.exe"
 ENV BAZEL_VS "C:\Program Files\Microsoft Visual Studio\2022\BuildTools"
-ENV BAZEL_VC "C:\Program Files\Microsoft Visual Studio\2022\Community\VC"
+ENV BAZEL_VC "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC"
+ENV BAZEL_VC_FULL_VERSION 14.44.35207
 
 # Environment variables to prevent auto-conversion of Linux-like paths to Windows paths.
 # This is necessary as some paths end up invalid/mangled.
 ENV MSYS_NO_PATHCONV 1
 ENV MSYS2_ARG_CONV_EXCL *
-
-# This should only be necessary if there are multiple, differently-versioned
-# MSVC compilers installed, and a particular one should be used.
-# To find exact versions available:
-# - Navigate to the relevant folder, e.g.
-#     C:\Program Files\Microsoft Visual Studio\2022
-# - Search for the `cl.exe` file: `gci -r -fi cl.exe`
-# - The version will be part of the found path, e.g.
-#     2022\Community\VC\Tools\MSVC\14.39.33519\bin\Hostx64\x64
-# ENV BAZEL_VC_FULL_VERSION 14.39.33519
 
 # Install Bazelisk.
 RUN md C:\tools\bazel
