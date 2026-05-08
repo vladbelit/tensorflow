@@ -60,9 +60,11 @@ RUN (New-Object Net.WebClient).DownloadFile( \
     $env:PATH = [Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';C:\tools\LLVM\bin'; \
     [Environment]::SetEnvironmentVariable('PATH', $env:PATH, 'Machine');
 
+ARG MSYS2_BASE_URL=https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20260322.tar.xz
+
 # Install MSYS2, and add some extra tools.
 RUN (New-Object Net.WebClient).DownloadFile( \
-         'https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20240113.tar.xz', \
+         $env:MSYS2_BASE_URL, \
          'msys2.tar.xz'); \
     Start-Process -FilePath \"C:\Program Files\7-Zip\7z.exe\" -ArgumentList 'x msys2.tar.xz -oC:\TEMP\msys2.tar' -Wait; \
     Start-Process -FilePath \"C:\Program Files\7-Zip\7z.exe\" -ArgumentList 'x C:\TEMP\msys2.tar -oC:\tools' -Wait; \

@@ -16,6 +16,7 @@ SDK include/lib directories, and LLVM path.
 - Windows SDK component: `Microsoft.VisualStudio.Component.Windows11SDK.22621`
 - Windows SDK path expected by the toolchain: `10.0.22621.0`
 - LLVM: `C:\tools\LLVM`, installed from LLVM 18.1.4
+- MSYS2 base archive: `https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20260322.tar.xz`
 - Checked-in Windows 2022 toolchain: update to a new dated snapshot generated
   from this image.
 
@@ -64,6 +65,12 @@ recommended dependencies.
    `Windows Kits\10\Include\<sdk>` and `Windows Kits\10\Lib\<sdk>`.
 
 5. Build and publish the image.
+
+   The Dockerfile accepts `MSYS2_BASE_URL` as a build argument. The upstream
+   MSYS2 `distrib/x86_64` directory does not keep every dated base archive
+   forever; for example, `msys2-base-x86_64-20240113.tar.xz` returned 404 on
+   2026-05-08. For long-lived reproducibility, mirror the selected archive and
+   pass the mirrored URL through `MSYS2_BASE_URL`.
 
    Use the repository's normal image build/publish flow. After publishing, update
    the `container-image` digest and `cache-silo-key` in:
