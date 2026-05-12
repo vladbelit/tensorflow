@@ -16,6 +16,7 @@
 """A visitor class that generates protobufs for each python object."""
 
 import enum
+import inspect
 import re
 import sys
 
@@ -109,12 +110,57 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 8:
   _NORMALIZE_TYPE["<class '_collections._tuplegetter'>"] = "<type 'property'>"
 
 
+# CPython regularly adds public members to these bases. Inherited members from
+# them are runtime details rather than TensorFlow API.
+_SIGNATURE_CLASS = getattr(inspect, 'Signature', None)
+_UNSTABLE_EXTERNAL_BASE_CLASSES = tuple(
+    cls for cls in (BaseException, enum.Enum, int, _SIGNATURE_CLASS)
+    if cls is not None)
+
+
 def _NormalizeType(ty):
   return _NORMALIZE_TYPE.get(ty, ty)
 
 
 def _NormalizeIsInstance(ty):
   return _NORMALIZE_ISINSTANCE.get(ty, ty)
+
+
+def _IsTensorFlowOwnedClass(cls):
+  module = getattr(cls, '__module__', '')
+  return (module.startswith('tensorflow.') or module.startswith('tensorflow_')
+          or module.startswith('keras.') or module.startswith('tf_keras.'))
+
+
+def _IsUnstableExternalBase(cls):
+  if _IsTensorFlowOwnedClass(cls):
+    return False
+  return any(issubclass(cls, base)
+             for base in _UNSTABLE_EXTERNAL_BASE_CLASSES)
+
+
+def _OwnerClass(cls, member):
+  try:
+    mro = tf_inspect.getmro(cls)
+  except TypeError:
+    return None
+
+  for base in mro:
+    if member in getattr(base, '__dict__', ()):
+      return base
+  return None
+
+
+def _IsUnstableExternalInheritedMember(cls, member):
+  if not tf_inspect.isclass(cls):
+    return False
+  owner = _OwnerClass(cls, member)
+  if owner is None or owner is cls:
+    return False
+  if owner is object and member == '__init__':
+    return any(issubclass(cls, base)
+               for base in _UNSTABLE_EXTERNAL_BASE_CLASSES)
+  return _IsUnstableExternalBase(owner)
 
 
 def _SanitizedArgSpec(obj):
@@ -258,6 +304,12 @@ class PythonObjectToProtoVisitor:
     # The path to the object.
     lib_path = self._default_path + '.' + path if path else self._default_path
     _, parent = tf_decorator.unwrap(parent)
+
+    if tf_inspect.isclass(parent):
+      children[:] = [
+          (name, child) for name, child in children
+          if not _IsUnstableExternalInheritedMember(parent, name)
+      ]
 
     # A small helper method to construct members(children) protos.
     def _AddMember(member_name, member_obj, proto):
