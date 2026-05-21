@@ -30,6 +30,28 @@ def _TensorFlowOwnedBase(module):
 
 class PythonObjectToProtoVisitorTest(googletest.TestCase):
 
+  def test_normalize_type_canonicalizes_runtime_type_names(self):
+    self.assertEqual(
+        "<class 'enum.EnumType'>",
+        visitor_lib._NormalizeType("<class 'enum.EnumMeta'>"))
+
+  def test_normalize_is_instance_preserves_legacy_class_names(self):
+    normalizations = {
+        "<class 'tensorflow.lite.python.op_hint.OpHint."
+        "OpHintArgumentTracker'>": (
+            "<class "
+            "'tensorflow.lite.python.op_hint.OpHintArgumentTracker'>"),
+        "<class 'tensorflow.python.training.monitored_session."
+        "_MonitoredSession.StepContext'>": (
+            "<class "
+            "'tensorflow.python.training.monitored_session.StepContext'>"),
+        "<class 'tensorflow.python.ops.variables.Variable.SaveSliceInfo'>": (
+            "<class 'tensorflow.python.ops.variables.SaveSliceInfo'>"),
+    }
+
+    for original, normalized in normalizations.items():
+      self.assertEqual(normalized, visitor_lib._NormalizeIsInstance(original))
+
   def test_tensorflow_owned_class_matches_mid_string_module(self):
     cls = _TensorFlowOwnedBase('third_party.py.tensorflow.python.framework')
 

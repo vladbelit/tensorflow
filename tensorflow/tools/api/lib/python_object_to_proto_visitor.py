@@ -18,7 +18,6 @@
 import enum
 import inspect
 import re
-import sys
 
 from google.protobuf import message
 from tensorflow.python.platform import tf_logging as logging
@@ -47,67 +46,59 @@ _CORNER_CASES = {
     }
 }
 
-# Python 2 vs. 3 differences
-if sys.version_info.major == 3:
-  _NORMALIZE_TYPE = {}
-  for t in ('property', 'object', 'getset_descriptor', 'int', 'str', 'type',
-            'tuple', 'module', 'collections.defaultdict', 'set', 'dict',
-            'NoneType', 'frozenset', 'member_descriptor'):
-    _NORMALIZE_TYPE["<class '%s'>" % t] = "<type '%s'>" % t
-  for e in 'Exception', 'RuntimeError':
-    _NORMALIZE_TYPE["<class '%s'>" % e] = "<type 'exceptions.%s'>" % e
-  _NORMALIZE_TYPE["<class 'abc.ABCMeta'>"] = "<type 'type'>"
-  _NORMALIZE_ISINSTANCE = {
-      "<class "
-      "'tensorflow.lite.python.op_hint.OpHint.OpHintArgumentTracker'>":  # pylint: disable=line-too-long
-          "<class "
-          "'tensorflow.lite.python.op_hint.OpHintArgumentTracker'>",
-      "<class "
-      "'tensorflow.python.training.monitored_session._MonitoredSession.StepContext'>":  # pylint: disable=line-too-long
-          "<class "
-          "'tensorflow.python.training.monitored_session.StepContext'>",
-      "<class "
-      "'tensorflow.python.ops.variables.Variable.SaveSliceInfo'>":
-          '<class '
-          "'tensorflow.python.ops.variables.SaveSliceInfo'>"
-  }
+_NORMALIZE_TYPE = {
+    "<class 'property'>": "<type 'property'>",
+    "<class 'object'>": "<type 'object'>",
+    "<class 'getset_descriptor'>": "<type 'getset_descriptor'>",
+    "<class 'int'>": "<type 'int'>",
+    "<class 'str'>": "<type 'str'>",
+    "<class 'type'>": "<type 'type'>",
+    "<class 'tuple'>": "<type 'tuple'>",
+    "<class 'module'>": "<type 'module'>",
+    "<class 'collections.defaultdict'>": "<type 'collections.defaultdict'>",
+    "<class 'set'>": "<type 'set'>",
+    "<class 'dict'>": "<type 'dict'>",
+    "<class 'NoneType'>": "<type 'NoneType'>",
+    "<class 'frozenset'>": "<type 'frozenset'>",
+    "<class 'member_descriptor'>": "<type 'member_descriptor'>",
+    "<class 'Exception'>": "<type 'exceptions.Exception'>",
+    "<class 'RuntimeError'>": "<type 'exceptions.RuntimeError'>",
+    "<class 'abc.ABCMeta'>": "<type 'type'>",
+    'tensorflow.python.framework.tensor.Tensor': (
+        "<class 'tensorflow.python.framework.tensor.Tensor'>"),
+    'typing.Generic': "<class 'typing.Generic'>",
+    # TODO(b/203104448): Remove once goldens are regenerated.
+    "<class 'typing._GenericAlias'>": 'typing.Union',
+    # TODO(b/203104448): Remove once goldens are regenerated.
+    "<class 'typing._UnionGenericAlias'>": 'typing.Union',
+    # TODO(b/203104448): Remove once goldens are regenerated.
+    "<class 'typing_extensions._ProtocolMeta'>": (
+        "<class 'typing._ProtocolMeta'>"),
+    # TODO(b/203104448): Remove once goldens are regenerated.
+    "<class 'typing_extensions.Protocol'>": "<class 'typing.Protocol'>",
+    "<class '_collections._tuplegetter'>": "<type 'property'>",
+    "<class 'enum.EnumMeta'>": "<class 'enum.EnumType'>",
+}
+_NORMALIZE_ISINSTANCE = {
+    "<class "
+    "'tensorflow.lite.python.op_hint.OpHint.OpHintArgumentTracker'>":  # pylint: disable=line-too-long
+        "<class "
+        "'tensorflow.lite.python.op_hint.OpHintArgumentTracker'>",
+    "<class "
+    "'tensorflow.python.training.monitored_session._MonitoredSession.StepContext'>":  # pylint: disable=line-too-long
+        "<class "
+        "'tensorflow.python.training.monitored_session.StepContext'>",
+    "<class "
+    "'tensorflow.python.ops.variables.Variable.SaveSliceInfo'>":
+        '<class '
+        "'tensorflow.python.ops.variables.SaveSliceInfo'>"
+}
 
-  def _SkipMember(cls, member):
-    return (member == 'with_traceback' or member in ('name', 'value') and
-            isinstance(cls, type) and issubclass(cls, enum.Enum))
-else:
-  _NORMALIZE_TYPE = {
-      "<class 'abc.ABCMeta'>": "<type 'type'>",
-      "<class 'pybind11_type'>": "<class 'pybind11_builtins.pybind11_type'>",
-  }
-  _NORMALIZE_ISINSTANCE = {
-      "<class 'pybind11_object'>":
-          "<class 'pybind11_builtins.pybind11_object'>",
-  }
 
-  def _SkipMember(cls, member):  # pylint: disable=unused-argument
-    return False
-
-
-# Differences created by typing implementations.
-_NORMALIZE_TYPE[
-    'tensorflow.python.framework.tensor.Tensor'
-] = "<class 'tensorflow.python.framework.tensor.Tensor'>"
-_NORMALIZE_TYPE['typing.Generic'] = "<class 'typing.Generic'>"
-# TODO(b/203104448): Remove once the golden files are generated in Python 3.7.
-_NORMALIZE_TYPE["<class 'typing._GenericAlias'>"] = 'typing.Union'
-# TODO(b/203104448): Remove once the golden files are generated in Python 3.9.
-_NORMALIZE_TYPE["<class 'typing._UnionGenericAlias'>"] = 'typing.Union'
-# TODO(b/203104448): Remove once the golden files are generated in Python 3.8.
-_NORMALIZE_TYPE["<class 'typing_extensions._ProtocolMeta'>"] = (
-    '<class '
-    "'typing._ProtocolMeta'>")
-# TODO(b/203104448): Remove once the golden files are generated in Python 3.8.
-_NORMALIZE_TYPE[
-    "<class 'typing_extensions.Protocol'>"] = "<class 'typing.Protocol'>"
-
-if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-  _NORMALIZE_TYPE["<class '_collections._tuplegetter'>"] = "<type 'property'>"
+def _SkipMember(cls, member):
+  return (member == 'with_traceback' or
+          (member in ('name', 'value') and isinstance(cls, type) and
+           issubclass(cls, enum.Enum)))
 
 
 # CPython regularly adds public members to these bases. Inherited members from

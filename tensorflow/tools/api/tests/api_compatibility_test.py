@@ -24,9 +24,6 @@ the public TF python API.
 """
 
 import argparse
-import builtins
-import enum
-import inspect
 import os
 import re
 import sys
@@ -102,60 +99,6 @@ _UPDATE_WARNING_FILE = resource_loader.get_path_to_datafile(
 _NON_CORE_PACKAGES = ['keras']
 _V1_APIS_FROM_KERAS = ['layers', 'nn.rnn_cell']
 _V2_APIS_FROM_KERAS = ['initializers', 'losses', 'metrics', 'optimizers']
-
-
-def _PublicMemberNames(*classes):
-  names = set()
-  for cls in classes:
-    if cls is None:
-      continue
-    names.update(
-        name for name in dir(cls)
-        if name == '__init__' or not name.startswith('_'))
-  return names
-
-
-def _BuiltinExceptionClasses():
-  return tuple(
-      obj for obj in vars(builtins).values()
-      if isinstance(obj, type) and issubclass(obj, BaseException))
-
-
-# Builtin exception classes as serialized in protos, e.g. "<class 'TypeError'>".
-_BUILTIN_EXCEPTION_CLASS_REPRS = {
-    str(cls) for cls in _BuiltinExceptionClasses()
-}
-# Base class for FunctionType; optional for compatibility with older runtimes.
-_SIGNATURE_CLASS = getattr(inspect, 'Signature', None)
-# Public exception members inherited by TF errors vary across Python releases.
-_EXCEPTION_INHERITED_MEMBER_NAMES = _PublicMemberNames(
-    *_BuiltinExceptionClasses()) | {'add_note'}
-# Public enum/int members inherited by TF enum APIs vary across Python releases.
-_ENUM_INHERITED_MEMBER_NAMES = (
-    _PublicMemberNames(enum.Enum, getattr(enum, 'IntEnum', None), int) |
-    {'is_integer'}) - {'name', 'value'}
-# Public inspect.Signature members inherited by FunctionType vary by Python.
-# FunctionType overrides from_callable, so keep checking that signature.
-_SIGNATURE_INHERITED_MEMBER_NAMES = (
-    _PublicMemberNames(_SIGNATURE_CLASS) | {
-        '__init__',
-        'bind',
-        'bind_partial',
-        'empty',
-        'format',
-        'from_builtin',
-        'parameters',
-        'replace',
-        'return_annotation',
-    }) - {'from_callable'}
-# Objects generated solely from legacy inherited runtime members.
-_LEGACY_EXTERNAL_INHERITED_OBJECTS = frozenset({
-    'tensorflow.types.experimental.FunctionType.empty',
-})
-# Runtime type names that changed without changing TensorFlow API ownership.
-_PYTHON_RUNTIME_MTYPE_NORMALIZATIONS = {
-    "<class 'enum.EnumMeta'>": "<class 'enum.EnumType'>",
-}
 
 
 def _KeyToFilePath(key, api_version):
@@ -268,82 +211,6 @@ def _FilterGoldenProtoDict(golden_proto_dict, omit_golden_symbols_map):
         del members[:]
         members.extend(filtered_members)
   return filtered_proto_dict
-
-
-def _NormalizePythonRuntimeTypeNames(proto_dict):
-  """Normalize Python runtime type names that are not TensorFlow API."""
-  normalized_proto_dict = {}
-  for key, api_object in proto_dict.items():
-    normalized_api_object = api_objects_pb2.TFAPIObject()
-    normalized_api_object.CopyFrom(api_object)
-    module_or_class = _GetModuleOrClass(normalized_api_object)
-    if module_or_class is not None:
-      for member in module_or_class.member:
-        member.mtype = _PYTHON_RUNTIME_MTYPE_NORMALIZATIONS.get(
-            member.mtype, member.mtype)
-    normalized_proto_dict[key] = normalized_api_object
-  return normalized_proto_dict
-
-
-def _LegacyExternalInheritedMemberNames(tf_class):
-  """Returns legacy inherited member names to ignore for this class."""
-  inherited_member_names = set()
-  for instance in tf_class.is_instance:
-    if instance.startswith("<enum '"):
-      inherited_member_names.update(_ENUM_INHERITED_MEMBER_NAMES)
-    if 'exceptions.' in instance or instance in _BUILTIN_EXCEPTION_CLASS_REPRS:
-      inherited_member_names.update(_EXCEPTION_INHERITED_MEMBER_NAMES)
-    if 'inspect.Signature' in instance:
-      inherited_member_names.update(_SIGNATURE_INHERITED_MEMBER_NAMES)
-  return inherited_member_names
-
-
-def _PruneMembersMissingFromActual(expected_members,
-                                   actual_members,
-                                   prunable_member_names):
-  """Remove prunable expected members that are absent from actual members."""
-  actual_member_names = {member.name for member in actual_members}
-  filtered_members = [
-      member for member in expected_members
-      if (
-          member.name not in prunable_member_names or
-          member.name in actual_member_names
-      )
-  ]
-  del expected_members[:]
-  expected_members.extend(filtered_members)
-
-
-def _PruneLegacyExternalInheritedMembers(expected_dict, actual_dict):
-  """Prune inherited stdlib members from older goldens.
-
-  The API visitor now skips selected members inherited from Python runtime
-  classes. Existing goldens can still contain those entries, so ignore them
-  during comparison when the freshly generated API no longer contains them.
-  """
-  pruned_expected_dict = {}
-  for key, api_object in expected_dict.items():
-    if key in _LEGACY_EXTERNAL_INHERITED_OBJECTS and key not in actual_dict:
-      continue
-
-    pruned_api_object = api_objects_pb2.TFAPIObject()
-    pruned_api_object.CopyFrom(api_object)
-    actual_api_object = actual_dict.get(key)
-    if (actual_api_object is not None and
-        pruned_api_object.HasField('tf_class') and
-        actual_api_object.HasField('tf_class')):
-      prunable_member_names = _LegacyExternalInheritedMemberNames(
-          pruned_api_object.tf_class)
-      _PruneMembersMissingFromActual(
-          pruned_api_object.tf_class.member,
-          actual_api_object.tf_class.member,
-          prunable_member_names)
-      _PruneMembersMissingFromActual(
-          pruned_api_object.tf_class.member_method,
-          actual_api_object.tf_class.member_method,
-          prunable_member_names)
-    pruned_expected_dict[key] = pruned_api_object
-  return pruned_expected_dict
 
 
 def _GetTFNumpyGoldenPattern(api_version):
@@ -545,10 +412,6 @@ class ApiCompatibilityTest(test.TestCase):
     golden_proto_dict = _FilterGoldenProtoDict(golden_proto_dict,
                                                omit_golden_symbols_map)
     proto_dict = _FilterGoldenProtoDict(proto_dict, omit_golden_symbols_map)
-    golden_proto_dict = _NormalizePythonRuntimeTypeNames(golden_proto_dict)
-    proto_dict = _NormalizePythonRuntimeTypeNames(proto_dict)
-    golden_proto_dict = _PruneLegacyExternalInheritedMembers(
-        golden_proto_dict, proto_dict)
 
     # Diff them. Do not fail if called with update.
     # If the test is run to update goldens, only report diffs but do not fail.

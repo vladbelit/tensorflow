@@ -4,10 +4,6 @@ tf_class {
   is_instance: "<class \'tensorflow.python.framework.errors_impl.OpError\'>"
   is_instance: "<type \'exceptions.Exception\'>"
   member {
-    name: "args"
-    mtype: "<type \'getset_descriptor\'>"
-  }
-  member {
     name: "error_code"
     mtype: "<type \'property\'>"
   }
@@ -30,8 +26,5 @@ tf_class {
   member_method {
     name: "__init__"
     argspec: "args=[\'self\', \'node_def\', \'op\', \'message\'], varargs=args, keywords=None, defaults=None"
-  }
-  member_method {
-    name: "add_note"
   }
 }
