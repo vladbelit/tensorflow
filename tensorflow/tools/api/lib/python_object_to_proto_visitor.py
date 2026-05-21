@@ -116,6 +116,8 @@ _SIGNATURE_CLASS = getattr(inspect, 'Signature', None)
 _UNSTABLE_EXTERNAL_BASE_CLASSES = tuple(
     cls for cls in (BaseException, enum.Enum, int, _SIGNATURE_CLASS)
     if cls is not None)
+_TENSORFLOW_FAMILY_MARKERS = ('tensorflow', 'tf_keras', 'keras')
+_OWNERSHIP_IDENTIFIER_RE = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 
 
 def _NormalizeType(ty):
@@ -126,10 +128,39 @@ def _NormalizeIsInstance(ty):
   return _NORMALIZE_ISINSTANCE.get(ty, ty)
 
 
-def _IsTensorFlowOwnedClass(cls):
+def _IsTensorFlowFamilySegment(segment):
+  return (segment in _TENSORFLOW_FAMILY_MARKERS or
+          segment.startswith('tensorflow_'))
+
+
+def _HasTensorFlowFamilyMarker(value):
+  if not value:
+    return False
+  return any(
+      _IsTensorFlowFamilySegment(segment)
+      for segment in _OWNERSHIP_IDENTIFIER_RE.findall(str(value)))
+
+
+def _ClassOwnershipEvidence(cls):
   module = getattr(cls, '__module__', '')
-  return (module.startswith('tensorflow.') or module.startswith('tensorflow_')
-          or module.startswith('keras.') or module.startswith('tf_keras.'))
+  if module:
+    yield module
+
+  try:
+    inspected_module = inspect.getmodule(cls)
+  except TypeError:
+    inspected_module = None
+  inspected_module_name = getattr(inspected_module, '__name__', '')
+  if inspected_module_name and inspected_module_name != module:
+    yield inspected_module_name
+
+  yield str(cls)
+  yield repr(cls)
+
+
+def _IsTensorFlowOwnedClass(cls):
+  return any(_HasTensorFlowFamilyMarker(value)
+             for value in _ClassOwnershipEvidence(cls))
 
 
 def _IsUnstableExternalBase(cls):
