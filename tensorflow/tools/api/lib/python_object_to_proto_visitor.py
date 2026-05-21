@@ -47,36 +47,9 @@ _CORNER_CASES = {
 }
 
 _NORMALIZE_TYPE = {
-    "<class 'property'>": "<type 'property'>",
-    "<class 'object'>": "<type 'object'>",
-    "<class 'getset_descriptor'>": "<type 'getset_descriptor'>",
-    "<class 'int'>": "<type 'int'>",
-    "<class 'str'>": "<type 'str'>",
-    "<class 'type'>": "<type 'type'>",
-    "<class 'tuple'>": "<type 'tuple'>",
-    "<class 'module'>": "<type 'module'>",
-    "<class 'collections.defaultdict'>": "<type 'collections.defaultdict'>",
-    "<class 'set'>": "<type 'set'>",
-    "<class 'dict'>": "<type 'dict'>",
-    "<class 'NoneType'>": "<type 'NoneType'>",
-    "<class 'frozenset'>": "<type 'frozenset'>",
-    "<class 'member_descriptor'>": "<type 'member_descriptor'>",
-    "<class 'Exception'>": "<type 'exceptions.Exception'>",
-    "<class 'RuntimeError'>": "<type 'exceptions.RuntimeError'>",
-    "<class 'abc.ABCMeta'>": "<type 'type'>",
-    'tensorflow.python.framework.tensor.Tensor': (
-        "<class 'tensorflow.python.framework.tensor.Tensor'>"),
-    'typing.Generic': "<class 'typing.Generic'>",
-    # TODO(b/203104448): Remove once goldens are regenerated.
-    "<class 'typing._GenericAlias'>": 'typing.Union',
-    # TODO(b/203104448): Remove once goldens are regenerated.
+    # Keep Union aliases stable across Python versions with different
+    # implementation types for typing.Union.
     "<class 'typing._UnionGenericAlias'>": 'typing.Union',
-    # TODO(b/203104448): Remove once goldens are regenerated.
-    "<class 'typing_extensions._ProtocolMeta'>": (
-        "<class 'typing._ProtocolMeta'>"),
-    # TODO(b/203104448): Remove once goldens are regenerated.
-    "<class 'typing_extensions.Protocol'>": "<class 'typing.Protocol'>",
-    "<class '_collections._tuplegetter'>": "<type 'property'>",
     "<class 'enum.EnumMeta'>": "<class 'enum.EnumType'>",
 }
 _NORMALIZE_ISINSTANCE = {
@@ -362,10 +335,7 @@ class PythonObjectToProtoVisitor:
         else:
           new_member = proto.member.add()
           new_member.name = member_name
-          if tf_inspect.ismodule(member_obj):
-            new_member.mtype = "<type \'module\'>"
-          else:
-            new_member.mtype = _NormalizeType(str(type(member_obj)))
+          new_member.mtype = _NormalizeType(str(type(member_obj)))
 
     parent_corner_cases = _CORNER_CASES.get(path, {})
 

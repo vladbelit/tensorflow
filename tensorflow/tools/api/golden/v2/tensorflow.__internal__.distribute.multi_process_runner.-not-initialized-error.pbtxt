@@ -1,5 +1,5 @@
 path: "tensorflow.__internal__.distribute.multi_process_runner.NotInitializedError"
 tf_class {
   is_instance: "<class \'tensorflow.python.distribute.multi_process_runner.NotInitializedError\'>"
-  is_instance: "<type \'exceptions.RuntimeError\'>"
+  is_instance: "<class \'RuntimeError\'>"
 }

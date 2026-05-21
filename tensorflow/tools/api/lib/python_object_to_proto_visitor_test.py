@@ -35,6 +35,14 @@ class PythonObjectToProtoVisitorTest(googletest.TestCase):
         "<class 'enum.EnumType'>",
         visitor_lib._NormalizeType("<class 'enum.EnumMeta'>"))
 
+  def test_normalize_type_keeps_only_current_canonicalizations(self):
+    self.assertEqual(
+        {
+            "<class 'typing._UnionGenericAlias'>": 'typing.Union',
+            "<class 'enum.EnumMeta'>": "<class 'enum.EnumType'>",
+        },
+        visitor_lib._NORMALIZE_TYPE)
+
   def test_normalize_is_instance_preserves_legacy_class_names(self):
     normalizations = {
         "<class 'tensorflow.lite.python.op_hint.OpHint."
