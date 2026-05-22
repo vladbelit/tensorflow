@@ -50,14 +50,16 @@ jobs:
 
       - name: Run Python 3.14 API compatibility test
         env:
-          TFCI: py314,windows_x86_2022
+          TFCI: py314,windows_x86_ml_actions,rbe
           TFCI_GITHUB_ACTIONS: true
         run: |
-          source ./ci/official/utilities/setup.sh
-          tfrun bazel $TFCI_BAZEL_BAZELRC_ARGS test \
-            $TFCI_BAZEL_COMMON_ARGS \
-            --noenable_runfiles \
-            --nobuild_runfile_links \
-            --test_output=errors \
-            --verbose_failures \
-            //tensorflow/tools/api/tests:api_compatibility_test
+          bash -eo pipefail -c '
+            source ./ci/official/utilities/setup.sh
+            tfrun bazel $TFCI_BAZEL_BAZELRC_ARGS test \
+              $TFCI_BAZEL_COMMON_ARGS \
+              --noenable_runfiles \
+              --nobuild_runfile_links \
+              --test_output=errors \
+              --verbose_failures \
+              //tensorflow/tools/api/tests:api_compatibility_test
+          ' ./ci/official/pycpp.sh
