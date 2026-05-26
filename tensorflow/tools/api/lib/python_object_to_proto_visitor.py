@@ -16,6 +16,7 @@
 """A visitor class that generates protobufs for each python object."""
 
 import enum
+import functools
 import inspect
 import re
 
@@ -50,6 +51,7 @@ _NORMALIZE_TYPE = {
     # Keep Union aliases stable across Python versions with different
     # implementation types for typing.Union.
     "<class 'typing._UnionGenericAlias'>": 'typing.Union',
+    "<class 'typing.Union'>": 'typing.Union',
     "<class 'enum.EnumMeta'>": "<class 'enum.EnumType'>",
 }
 _NORMALIZE_ISINSTANCE = {
@@ -90,6 +92,14 @@ def _NormalizeType(ty):
 
 def _NormalizeIsInstance(ty):
   return _NORMALIZE_ISINSTANCE.get(ty, ty)
+
+
+def _IsApiMethod(obj):
+  """Return whether obj should be serialized as a proto method."""
+  # Keep callable wrapper objects in the member field across Python versions.
+  if isinstance(obj, functools.partial):
+    return False
+  return tf_inspect.isroutine(obj)
 
 
 def _IsTensorFlowFamilySegment(segment):
@@ -314,7 +324,7 @@ class PythonObjectToProtoVisitor:
           isinstance(member_obj, deprecation.HiddenTfApiAttribute)):
         return
       if member_name == '__init__' or not member_name.startswith('_'):
-        if tf_inspect.isroutine(member_obj):
+        if _IsApiMethod(member_obj):
           new_method = proto.member_method.add()
           new_method.name = member_name
           # If member_obj is a python builtin, there is no way to get its

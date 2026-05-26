@@ -15,7 +15,9 @@
 """Tests for Python object API proto visitor."""
 
 import enum
+import functools
 import inspect
+import types
 
 from tensorflow.python.platform import googletest
 from tensorflow.tools.api.lib import python_object_to_proto_visitor as visitor_lib
@@ -34,14 +36,36 @@ class PythonObjectToProtoVisitorTest(googletest.TestCase):
     self.assertEqual(
         "<class 'enum.EnumType'>",
         visitor_lib._NormalizeType("<class 'enum.EnumMeta'>"))
+    self.assertEqual(
+        'typing.Union',
+        visitor_lib._NormalizeType("<class 'typing.Union'>"))
 
   def test_normalize_type_keeps_only_current_canonicalizations(self):
     self.assertEqual(
         {
             "<class 'typing._UnionGenericAlias'>": 'typing.Union',
+            "<class 'typing.Union'>": 'typing.Union',
             "<class 'enum.EnumMeta'>": "<class 'enum.EnumType'>",
         },
         visitor_lib._NORMALIZE_TYPE)
+
+  def test_partial_member_is_recorded_as_member(self):
+
+    def target(value):
+      return value
+
+    module = types.ModuleType('fake_module')
+    visitor = visitor_lib.PythonObjectToProtoVisitor()
+
+    visitor('', module, [('generate', functools.partial(target, 1))])
+
+    proto = visitor.GetProtos()['tensorflow']
+    self.assertEqual(['generate'],
+                     [member.name for member in proto.tf_module.member])
+    self.assertEqual("<class 'functools.partial'>",
+                     proto.tf_module.member[0].mtype)
+    self.assertEqual([],
+                     [method.name for method in proto.tf_module.member_method])
 
   def test_normalize_is_instance_preserves_legacy_class_names(self):
     normalizations = {
