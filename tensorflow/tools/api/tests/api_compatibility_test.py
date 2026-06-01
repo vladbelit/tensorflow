@@ -240,7 +240,8 @@ class ApiCompatibilityTest(test.TestCase):
                              verbose=False,
                              update_goldens=False,
                              additional_missing_object_message='',
-                             api_version=2):
+                             api_version=2,
+                             actual_dict_for_update=None):
     """Diff given dicts of protobufs and report differences a readable way.
 
     Args:
@@ -253,7 +254,12 @@ class ApiCompatibilityTest(test.TestCase):
       additional_missing_object_message: Message to print when a symbol is
         missing.
       api_version: TensorFlow API version to test.
+      actual_dict_for_update: Optional unfiltered actual protos to write when
+        update_goldens is true.
     """
+    if actual_dict_for_update is None:
+      actual_dict_for_update = actual_dict
+
     diffs = []
     verbose_diffs = []
     expected_keys = set(expected_dict.keys())
@@ -314,7 +320,8 @@ class ApiCompatibilityTest(test.TestCase):
         for key in only_in_actual | set(updated_keys):
           filepath = _KeyToFilePath(key, api_version)
           file_io.write_string_to_file(
-              filepath, text_format.MessageToString(actual_dict[key]))
+              filepath, text_format.MessageToString(
+                  actual_dict_for_update[key]))
       else:
         # Include the actual differences to help debugging.
         for d, verbose_d in zip(diffs, verbose_diffs):
@@ -411,16 +418,18 @@ class ApiCompatibilityTest(test.TestCase):
     }
     golden_proto_dict = _FilterGoldenProtoDict(golden_proto_dict,
                                                omit_golden_symbols_map)
-    proto_dict = _FilterGoldenProtoDict(proto_dict, omit_golden_symbols_map)
+    filtered_proto_dict = _FilterGoldenProtoDict(proto_dict,
+                                                 omit_golden_symbols_map)
 
     # Diff them. Do not fail if called with update.
     # If the test is run to update goldens, only report diffs but do not fail.
     self._AssertProtoDictEquals(
         golden_proto_dict,
-        proto_dict,
+        filtered_proto_dict,
         verbose=FLAGS.verbose_diffs,
         update_goldens=FLAGS.update_goldens,
-        api_version=api_version)
+        api_version=api_version,
+        actual_dict_for_update=proto_dict)
 
   def testAPIBackwardsCompatibility(self):
     api_version = 1
