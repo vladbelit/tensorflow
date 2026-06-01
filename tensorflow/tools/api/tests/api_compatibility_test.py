@@ -213,6 +213,28 @@ def _FilterGoldenProtoDict(golden_proto_dict, omit_golden_symbols_map):
   return filtered_proto_dict
 
 
+def _KeysWithMissingOmittedFields(expected_dict, actual_dict,
+                                  omit_golden_symbols_map):
+  """Returns keys where persisted goldens lost comparison-omitted fields."""
+  if not omit_golden_symbols_map:
+    return set()
+
+  keys = set()
+  for key, symbol_list in omit_golden_symbols_map.items():
+    if key not in expected_dict or key not in actual_dict:
+      continue
+    if 'is_instance' not in symbol_list:
+      continue
+    expected_module_or_class = _GetModuleOrClass(expected_dict[key])
+    actual_module_or_class = _GetModuleOrClass(actual_dict[key])
+    if expected_module_or_class is None or actual_module_or_class is None:
+      continue
+    if (not expected_module_or_class.is_instance and
+        actual_module_or_class.is_instance):
+      keys.add(key)
+  return keys
+
+
 def _GetTFNumpyGoldenPattern(api_version):
   return os.path.join(resource_loader.get_root_dir_with_all_resources(),
                       _KeyToFilePath('tensorflow.experimental.numpy*',
@@ -241,7 +263,8 @@ class ApiCompatibilityTest(test.TestCase):
                              update_goldens=False,
                              additional_missing_object_message='',
                              api_version=2,
-                             actual_dict_for_update=None):
+                             actual_dict_for_update=None,
+                             additional_update_keys=None):
     """Diff given dicts of protobufs and report differences a readable way.
 
     Args:
@@ -256,9 +279,13 @@ class ApiCompatibilityTest(test.TestCase):
       api_version: TensorFlow API version to test.
       actual_dict_for_update: Optional unfiltered actual protos to write when
         update_goldens is true.
+      additional_update_keys: Optional keys to rewrite when update_goldens is
+        true even if comparison filters hide the difference.
     """
     if actual_dict_for_update is None:
       actual_dict_for_update = actual_dict
+    if additional_update_keys is None:
+      additional_update_keys = set()
 
     diffs = []
     verbose_diffs = []
@@ -299,11 +326,15 @@ class ApiCompatibilityTest(test.TestCase):
         diffs.append(diff_message)
         verbose_diffs.append(verbose_diff_message)
 
+    keys_to_update = only_in_actual | set(updated_keys) | additional_update_keys
+
     # If diffs are found, handle them based on flags.
-    if diffs:
+    if diffs or (update_goldens and keys_to_update):
       diff_count = len(diffs)
-      logging.error(self._test_readme_message)
-      logging.error('%d differences found between API and golden.', diff_count)
+      if diffs:
+        logging.error(self._test_readme_message)
+        logging.error('%d differences found between API and golden.',
+                      diff_count)
 
       if update_goldens:
         # Write files if requested.
@@ -317,7 +348,7 @@ class ApiCompatibilityTest(test.TestCase):
 
         # If the files are only in actual (current library), these are new
         # modules. Write them to files. Also record all updates in files.
-        for key in only_in_actual | set(updated_keys):
+        for key in keys_to_update:
           filepath = _KeyToFilePath(key, api_version)
           file_io.write_string_to_file(
               filepath, text_format.MessageToString(
@@ -416,20 +447,23 @@ class ApiCompatibilityTest(test.TestCase):
         _FileNameToKey(filename): _ReadFileToProto(filename)
         for filename in golden_file_list
     }
-    golden_proto_dict = _FilterGoldenProtoDict(golden_proto_dict,
-                                               omit_golden_symbols_map)
+    additional_update_keys = _KeysWithMissingOmittedFields(
+        golden_proto_dict, proto_dict, omit_golden_symbols_map)
+    filtered_golden_proto_dict = _FilterGoldenProtoDict(
+        golden_proto_dict, omit_golden_symbols_map)
     filtered_proto_dict = _FilterGoldenProtoDict(proto_dict,
                                                  omit_golden_symbols_map)
 
     # Diff them. Do not fail if called with update.
     # If the test is run to update goldens, only report diffs but do not fail.
     self._AssertProtoDictEquals(
-        golden_proto_dict,
+        filtered_golden_proto_dict,
         filtered_proto_dict,
         verbose=FLAGS.verbose_diffs,
         update_goldens=FLAGS.update_goldens,
         api_version=api_version,
-        actual_dict_for_update=proto_dict)
+        actual_dict_for_update=proto_dict,
+        additional_update_keys=additional_update_keys)
 
   def testAPIBackwardsCompatibility(self):
     api_version = 1
