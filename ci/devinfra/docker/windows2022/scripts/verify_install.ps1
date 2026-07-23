@@ -37,6 +37,23 @@ function Assert-ResolvedCommand {
   }
 }
 
+function Assert-ExistingPath {
+  param (
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+
+    [Parameter(Mandatory = $true)]
+    [string]$Description,
+
+    [ValidateSet('Any', 'Container', 'Leaf')]
+    [string]$PathType = 'Any'
+  )
+
+  if (-not (Test-Path -LiteralPath $Path -PathType $PathType)) {
+    throw ('{0} was not found at {1}.' -f $Description, $Path)
+  }
+}
+
 Write-Output 'Verifying Windows build image...'
 
 $pwshExe = Join-Path $env:ProgramFiles 'PowerShell\7\pwsh.exe'
@@ -46,6 +63,8 @@ $gcloudCmd = 'C:\tools\google-cloud-sdk\bin\gcloud.cmd'
 $expectedCommands = [ordered]@{
   'pwsh.exe' = $pwshExe
   '7z.exe' = (Join-Path $env:ProgramFiles '7-Zip\7z.exe')
+  # TODO(belitskiy): Update the compatibility default once all CI consumers
+  # use the new compiler stack.
   'clang.exe' = 'C:\tools\LLVM\bin\clang.exe'
   'bash.exe' = $bashExe
   'java.exe' = $jdkExe
@@ -58,6 +77,13 @@ $expectedCommands = [ordered]@{
 foreach ($command in $expectedCommands.GetEnumerator()) {
   Assert-ResolvedCommand -Name $command.Key -ExpectedPath $command.Value
 }
+
+# TODO(belitskiy): Remove this compatibility check once all CI consumers use
+# the new compiler stack.
+Assert-CommandVersion -FilePath 'C:\tools\LLVM\bin\clang.exe' `
+  -ArgumentList @('--version') -ExpectedPattern '^clang version 18\.1\.4\b'
+Assert-CommandVersion -FilePath 'C:\tools\LLVM-19.1.7\bin\clang.exe' `
+  -ArgumentList @('--version') -ExpectedPattern '^clang version 19\.1\.7\b'
 
 Assert-CommandVersion -FilePath $bashExe -ArgumentList @(
   '-lc', 'pacman -Q -- curl git patch unzip vim wget zip'
@@ -108,19 +134,31 @@ Assert-CommandVersion -FilePath $bashExe -ArgumentList @(
   '-ic', 'alias gcloud && alias gsutil && alias bq && gcloud --version'
 ) -ExpectedPattern '(?s)alias gcloud=.*Google Cloud SDK'
 
-$vsRoot = 'C:\Program Files\Microsoft Visual Studio\2022\BuildTools'
-$vcRoot = Join-Path $vsRoot 'VC'
-$clExecutables = @(Get-ChildItem -Path `
-    (Join-Path $vcRoot 'Tools\MSVC\*\bin\Hostx64\x64\cl.exe') -File)
-if ($clExecutables.Count -eq 0) {
-  throw 'No x64-hosted MSVC compiler was found.'
+# TODO(belitskiy): Remove legacy MSVC and SDK checks once all CI consumers use
+# the new compiler stack.
+$msvcCompilers = [ordered]@{
+  'legacy MSVC 14.42 compiler' = (
+    'C:\Program Files\Microsoft Visual Studio\2022\Community\' +
+    'VC\Tools\MSVC\14.42.34433\bin\Hostx64\x64\cl.exe'
+  )
+  'current MSVC 14.44 compiler' = (
+    'C:\Program Files\Microsoft Visual Studio\2022\BuildTools\' +
+    'VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\cl.exe'
+  )
+}
+foreach ($compiler in $msvcCompilers.GetEnumerator()) {
+  Assert-ExistingPath -Path $compiler.Value -Description $compiler.Key `
+    -PathType Leaf
 }
 
-$sdkBinRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
-$sdkDirs = @(Get-ChildItem -LiteralPath $sdkBinRoot -Directory |
-    Where-Object { $_.Name -like '10.0.26100.*' })
-if ($sdkDirs.Count -eq 0) {
-  throw 'Windows SDK 10.0.26100 was not found.'
+$sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10'
+foreach ($version in @('10.0.22621.0', '10.0.26100.0')) {
+  foreach ($directory in @('bin', 'Include', 'Lib')) {
+    $path = Join-Path $sdkRoot (Join-Path $directory $version)
+    Assert-ExistingPath -Path $path `
+      -Description ('Windows SDK {0} {1} directory' -f $version, $directory) `
+      -PathType Container
+  }
 }
 
 Write-Output 'Windows build image verification complete.'

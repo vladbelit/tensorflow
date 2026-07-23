@@ -40,6 +40,27 @@ At container startup, the entrypoint routes the GCE metadata server address
 through the container's default gateway when one is available. Networkless
 containers skip this setup.
 
+## Transitional Windows toolchains
+
+TODO(belitskiy): Remove the compatibility stack once all CI consumers use the
+new compiler stack.
+
+The image temporarily carries two complete compiler stacks so the runner and
+RBE image digests can move before TensorFlow/XLA/JAX select the new toolchain:
+
+- The compatibility stack retains Visual Studio Community/MSVC 14.42.34433,
+  Windows SDK 10.0.22621.0, and LLVM 18.1.4 at the paths captured by the
+  `20241118` toolchain snapshot.
+- The current stack provides Visual Studio Build Tools/MSVC 14.44.35207,
+  Windows SDK 10.0.26100.0, and LLVM 19.1.7 under
+  `C:\tools\LLVM-19.1.7`.
+
+Unqualified `clang` and `BAZEL_LLVM` intentionally continue to select LLVM 18
+for compatibility.
+Dated Bazel toolchain snapshots select all compiler, header, library, and SDK
+paths explicitly, so the LLVM 19 directory does not need to be on the machine
+PATH.
+
 ## Python layout
 
 Python 3.10 through 3.15 are installed under matching dotted directories such
@@ -63,11 +84,12 @@ docker image inspect tensorflow-windows2022:dev `
   --format '{{.Id}} {{.Size}}'
 ```
 
-Versioned downloads require checked-in SHA-256 hashes. Three inputs remain
+Versioned downloads require checked-in SHA-256 hashes. Four inputs remain
 intentionally serviced or rolling:
 
 - The LTSC 2022 Server Core base tag receives Windows servicing.
-- The hashed Visual Studio bootstrapper selects serviced VS 2022 components.
+- The two hashed Visual Studio bootstrappers select serviced VS 2022
+  components.
 - The fixed MSYS2 archive is upgraded from live signed repositories.
 
 ## Updating a tool

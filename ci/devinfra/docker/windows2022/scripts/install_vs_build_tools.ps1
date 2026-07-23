@@ -14,6 +14,7 @@
 # ==============================================================================
 
 param (
+  [string]$ProductName = 'Build Tools',
   # This is the immutable target of the VS 2022 evergreen URL as of 2026-07-13.
   # The bootstrapper still selects serviced component payloads from its channel.
   [string]$Url = (
@@ -33,8 +34,8 @@ param (
 
 . "$PSScriptRoot\common.ps1"
 
-Write-Output 'Installing Visual Studio 2022 Build Tools...'
-$installerPath = Join-Path $env:TEMP 'vs_BuildTools.exe'
+Write-Output ('Installing Visual Studio 2022 {0}...' -f $ProductName)
+$installerPath = Join-Path $env:TEMP 'vs_installer.exe'
 
 Download-File -Url $Url -Destination $installerPath -Sha256 $Sha256
 

@@ -15,8 +15,9 @@
 
 # This Dockerfile creates a Windows Server 2022 build image with:
 # - PowerShell 7.4.17 (LTS)
-# - Visual Studio 2022 Build Tools and the Windows 11 26100 SDK
-# - LLVM/Clang 18.1.4
+# - Visual Studio 2022 Community/MSVC 14.42 and the Windows 11 22621 SDK (temporary, for compatibility)
+# - Visual Studio 2022 Build Tools/MSVC 14.44 and the Windows 11 26100 SDK
+# - LLVM/Clang 18.1.4 and 19.1.7
 # - MSYS2 plus curl, git, patch, unzip, vim, wget, and zip
 # - Python 3.10 through 3.15, with Python 3.14 as the PATH default
 # - Azul Zulu JDK 25.0.3
@@ -48,9 +49,29 @@ RUN C:\setup\install_7zip.ps1
 
 COPY scripts/install_vs_build_tools.ps1 C:/setup/
 RUN C:\setup\install_vs_build_tools.ps1
+# TODO(belitskiy): Remove this compatibility installation once all CI
+# consumers use the new compiler stack.
+RUN $legacyComponents = @( \
+      'Microsoft.VisualStudio.Workload.NativeDesktop', \
+      'Microsoft.VisualStudio.Component.VC.14.42.17.12.x86.x64', \
+      'Microsoft.VisualStudio.Component.Windows11SDK.22621' \
+    ); \
+    C:\setup\install_vs_build_tools.ps1 \
+      -ProductName 'Community compatibility toolchain' \
+      -Url 'https://download.visualstudio.microsoft.com/download/pr/f7f5ecbc-83ca-4cf0-bdb2-aaf70efb6d97/d3cc238063d64e6448afbe4dfd69254af37adb4ff47e158fea2280bcafd098c4/vs_Community.exe' \
+      -Sha256 'd3cc238063d64e6448afbe4dfd69254af37adb4ff47e158fea2280bcafd098c4' \
+      -InstallPath 'C:\Program Files\Microsoft Visual Studio\2022\Community' \
+      -Components $legacyComponents
 
 COPY scripts/install_llvm.ps1 C:/setup/
+# TODO(belitskiy): Remove and update this compatibility installation once all CI
+# consumers use the new compiler stack.
 RUN C:\setup\install_llvm.ps1
+RUN C:\setup\install_llvm.ps1 \
+      -Url 'https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/LLVM-19.1.7-win64.exe' \
+      -Sha256 'f19ae5bc4823ac69ec01dc2ded503ec80a04ad2208dda1595d1f0413c148ef90' \
+      -TargetDir 'C:\tools\LLVM-19.1.7' \
+      -SkipPath
 
 # Disable path conversion under MSYS - it tends to cause issues rather than solve them.
 ENV MSYS_NO_PATHCONV=1
@@ -82,6 +103,8 @@ RUN C:\setup\install_gcloud.ps1
 
 # Bazel environment variables use forward slashes to avoid Dockerfile escaping;
 # Windows tools accept both separator forms.
+# TODO(belitskiy): Update the compatibility default to LLVM 19.1.7 once all CI consumers use
+# the new compiler stack.
 ENV BAZEL_LLVM=C:/tools/LLVM
 ENV BAZEL_SH=C:/tools/msys64/usr/bin/bash.exe
 ENV BAZEL_VS="C:/Program Files/Microsoft Visual Studio/2022/BuildTools"

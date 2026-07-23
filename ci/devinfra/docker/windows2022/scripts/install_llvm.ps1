@@ -19,7 +19,8 @@ param (
     'llvmorg-18.1.4/LLVM-18.1.4-win64.exe'
   ),
   [string]$Sha256 = '78d8f528a132e131b978e6b3276aa45af759a068a25c006240f59ab28df5f621',
-  [string]$TargetDir = 'C:\tools\LLVM'
+  [string]$TargetDir = 'C:\tools\LLVM',
+  [switch]$SkipPath
 )
 
 . "$PSScriptRoot\common.ps1"
@@ -35,7 +36,9 @@ Invoke-NativeCommand -FilePath '7z.exe' -ArgumentList @(
 
 $binDir = Join-Path $TargetDir 'bin'
 $clangExe = Join-Path $binDir 'clang.exe'
-Add-ToMachinePath -Directory $binDir
+if (-not $SkipPath) {
+  Add-ToMachinePath -Directory $binDir
+}
 Assert-CommandVersion -FilePath $clangExe -ArgumentList @('--version') `
   -ExpectedPattern '^clang version '
 
