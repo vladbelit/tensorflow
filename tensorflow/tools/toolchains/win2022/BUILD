@@ -73,3 +73,22 @@ platform(
         "cache-silo-key": "20260115",
     },
 )
+
+# TODO(belitskiy): Update the image digest and cache silo after the new
+# compiler-stack image is published. This platform is a placeholder; do not
+# select it until then.
+platform(
+    name = "windows_ltsc2022_clang_ml_actions_20260722",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+        "@bazel_tools//tools/cpp:clang-cl",
+    ],
+    exec_properties = {
+        "container-image": "docker://us-docker.pkg.dev/ml-oss-artifacts-published/ml-public-container/ml-build-windows@sha256:023fa901fda70be8890b05689d0a667287692c1f59d0abe4add7208ec5a12707",
+        "OSFamily": "Windows",
+        "Pool": "windows-2022-pool",
+        "dockerNetwork": "off",
+        "cache-silo-key": "20260115",
+    },
+)
