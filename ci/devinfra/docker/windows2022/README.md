@@ -69,6 +69,13 @@ has a `python3.x.exe` alias. Python 3.14 is the default and provides `python`,
 `python3`, `py`, and `pip`. Other Python Scripts directories remain off PATH
 to avoid ambiguous unqualified commands.
 
+Python 3.14 also includes its free-threaded runtime as
+`C:\Python3.14\python3.14t.exe`, available on PATH as `python3.14t` and
+selectable through the launcher with `py -3.14t`.
+
+Note: The 3.14 installation shares `site-packages`,
+so make sure to use a venv if installing packages on both.
+
 ## Cache and reproducibility
 
 Each installer is copied immediately before its `RUN` instruction. This keeps

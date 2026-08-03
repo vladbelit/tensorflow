@@ -19,7 +19,7 @@
 # - Visual Studio 2022 Build Tools/MSVC 14.44 and the Windows 11 26100 SDK
 # - LLVM/Clang 18.1.4 and 19.1.7
 # - MSYS2 plus curl, git, patch, unzip, vim, wget, and zip
-# - Python 3.10 through 3.15, with Python 3.14 as the PATH default
+# - Python 3.10 through 3.15 plus free-threaded 3.14, with regular 3.14 as the PATH default
 # - Azul Zulu JDK 25.0.3
 # - Bazelisk 1.29.0
 # - uv 0.11.28
@@ -90,7 +90,7 @@ RUN C:\setup\install_python.ps1 -Version '3.10.11' -Aliases @('python3.10.exe') 
 RUN C:\setup\install_python.ps1 -Version '3.11.9' -Aliases @('python3.11.exe') -TargetDir 'C:\Python3.11' -Sha256 '5ee42c4eee1e6b4464bb23722f90b45303f79442df63083f05322f1785f5fdde'
 RUN C:\setup\install_python.ps1 -Version '3.12.10' -Aliases @('python3.12.exe') -TargetDir 'C:\Python3.12' -Sha256 '67b5635e80ea51072b87941312d00ec8927c4db9ba18938f7ad2d27b328b95fb'
 RUN C:\setup\install_python.ps1 -Version '3.13.14' -Aliases @('python3.13.exe') -TargetDir 'C:\Python3.13' -Sha256 'c54d9b9bbb8a36e6489363ddd01139707fd781d72f1f9e90c7ec65d0061368e0'
-RUN C:\setup\install_python.ps1 -Version '3.14.6' -Aliases @('python3.exe', 'python3.14.exe') -PrependToPath -TargetDir 'C:\Python3.14' -InstallLauncher -Sha256 '14b3e9a710a3fcf0bd9b55ab6b60412bd91227563f813fc49040cabc0209e0bd'
+RUN C:\setup\install_python.ps1 -Version '3.14.6' -Aliases @('python3.exe', 'python3.14.exe') -PrependToPath -TargetDir 'C:\Python3.14' -IncludeFreeThreaded -InstallLauncher -Sha256 '14b3e9a710a3fcf0bd9b55ab6b60412bd91227563f813fc49040cabc0209e0bd'
 RUN C:\setup\install_python.ps1 -Version '3.15.0b3' -Aliases @('python3.15.exe') -TargetDir 'C:\Python3.15' -ReleaseDirectory '3.15.0' -Sha256 '8002dbdf7277964a3c50f5deef090dfcd0769647a35aec97999f63d5f2903d38'
 ENV PY_PYTHON=3.14
 

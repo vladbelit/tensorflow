@@ -32,6 +32,8 @@ param (
 
   [string []]$Aliases = @(),
 
+  [switch]$IncludeFreeThreaded,  # Install the versioned free-threaded binary.
+
   [switch]$InstallLauncher,  # Install the shared py.exe launcher.
 
   [switch]$PrependToPath  # Make this the default Python on PATH.
@@ -53,7 +55,7 @@ $installerPath = Join-Path $env:TEMP ('python-{0}-amd64.exe' -f $Version)
 $launcherValue = if ($InstallLauncher) { 1 } else { 0 }
 
 Download-File -Url $url -Destination $installerPath -Sha256 $Sha256
-Invoke-NativeCommand -FilePath $installerPath -ArgumentList @(
+$installerArguments = @(
   '/quiet',
   'InstallAllUsers=1',
   ('TargetDir={0}' -f $TargetDir),
@@ -74,12 +76,28 @@ Invoke-NativeCommand -FilePath $installerPath -ArgumentList @(
   ('InstallLauncherAllUsers={0}' -f $launcherValue),
   'Shortcuts=0'
 )
+if ($IncludeFreeThreaded) {
+  $installerArguments += 'Include_freethreaded=1'
+}
+Invoke-NativeCommand -FilePath $installerPath `
+  -ArgumentList $installerArguments
 
 $pythonExe = Join-Path $TargetDir 'python.exe'
 Assert-CommandVersion -FilePath $pythonExe -ArgumentList @('--version') `
   -ExpectedPattern ('^Python {0}$' -f [regex]::Escape($Version))
 Assert-CommandVersion -FilePath $pythonExe `
   -ArgumentList @('-m', 'pip', '--version') -ExpectedPattern '^pip '
+
+if ($IncludeFreeThreaded) {
+  $versionParts = $Version.Split('.')
+  $freeThreadedExe = Join-Path $TargetDir `
+    ('python{0}.{1}t.exe' -f $versionParts[0], $versionParts[1])
+  Assert-CommandVersion -FilePath $freeThreadedExe -ArgumentList @('-VV') `
+    -ExpectedPattern ('(?s)^Python {0}.*free-threading build' -f `
+      [regex]::Escape($Version))
+  Assert-CommandVersion -FilePath $freeThreadedExe `
+    -ArgumentList @('-m', 'pip', '--version') -ExpectedPattern '^pip '
+}
 
 if ($PipPackages.Count -gt 0) {
   Write-Output ('Installing {0}' -f ($PipPackages -join ', '))

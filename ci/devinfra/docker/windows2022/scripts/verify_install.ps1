@@ -120,10 +120,23 @@ foreach ($minor in $pythonMinors) {
 
 $defaultPython = 'C:\Python3.14\python.exe'
 $defaultPython3 = 'C:\Python3.14\python3.exe'
+$freeThreadedPython = 'C:\Python3.14\python3.14t.exe'
 Assert-ResolvedCommand -Name 'python.exe' -ExpectedPath $defaultPython
 Assert-ResolvedCommand -Name 'python3.exe' -ExpectedPath $defaultPython3
+Assert-ResolvedCommand -Name 'python3.14t.exe' `
+  -ExpectedPath $freeThreadedPython
 Assert-CommandVersion -FilePath 'py.exe' -ArgumentList @('--version') `
   -ExpectedPattern '^Python 3\.14\.'
+Assert-CommandVersion -FilePath 'py.exe' -ArgumentList @('-3.14t', '-VV') `
+  -ExpectedPattern '(?s)^Python 3\.14\.6.*free-threading build'
+
+Invoke-NativeCommand -FilePath $defaultPython -ArgumentList @(
+  '-c', 'import sysconfig; assert not sysconfig.get_config_var("Py_GIL_DISABLED")'
+)
+Invoke-NativeCommand -FilePath $freeThreadedPython -ArgumentList @(
+  '-c',
+  'import packaging, setuptools, sysconfig; assert sysconfig.get_config_var("Py_GIL_DISABLED") == 1'
+)
 
 $defaultPip = 'C:\Python3.14\Scripts\pip.exe'
 Assert-ResolvedCommand -Name 'pip' -ExpectedPath $defaultPip
